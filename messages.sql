@@ -1,0 +1,5 @@
+Create table messages(id int(11) not null auto_increment, no int(11) not null, content varchar(5000), first int(10), last int(10), frequency int(11) not null, md5 varchar(64) not null unique, day int(10) not null,primary key(id), index no_time(no, day));
+Create table asset(id int(11) not null auto_increment, asset varchar(2000) not null, md5 varchar(64) not null unique, primary key(id));
+Create table links(as1 varchar(50) not null, as2 varchar(50) not null, type int(1) not null, monitors int(11), message int(11) not null, first int(10), last int(10), frequency int(11) not null, primary key(as1, as2, type));
+Create table monitors(nexthop varchar(50) not null, asn varchar(50) not null, peer varchar(50) not null, peerasn varchar(50) not null, type int(1) not null, prefixes int(11) not null, message int(11) not null, first int(10), last int(10), frequency int(11) not null, primary key(nexthop, asn, peer, peerasn, type));
+Create table origins(prefix varchar(50) not null, origin varchar(50) not null, type int(1) not null, monitors int(11), message int(11) not null, first int(10), last int(10), frequency int(11) not null, primary key(prefix, origin, type));
