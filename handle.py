@@ -2,7 +2,7 @@
 
 import datetime, MySQLdb, ConfigParser
 
-def handle():
+def handle(directory, date):
   with open('error.log', 'a') as log:
     try:
       cfg = ConfigParser.ConfigParser()
@@ -15,6 +15,16 @@ def handle():
         try:
           db_conn = MySQLdb.connect(host = db_host, user = db_user, passwd = db_pass, port = int(db_port), db = 'bgp')
           db_cursor = db_conn.cursor()
+          dir_msgs = ''.join([directory, date, '.messages'])
+          dir_links = ''.join([directory, date, '.links'])
+          dir_mons = ''.join([directory, date, '.monitors'])
+          dir_orig = ''.join([directory, date, '.origins'])
+          with open(dir_msgs, 'r') as file_msgs:
+            lines = file_msgs.readlines()
+            for line in lines:
+              content = line.strip('\n').split('\t', 2)
+              print content
+              break
         finally:
           if 'db_cursor' in locals():
             db_cursor.close()
@@ -27,5 +37,5 @@ def handle():
       log.write('%s: ConfigParserError %s.\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e))
 
 if __name__ == '__main__':
-  handle()
+  handle('/home/hitnis/qcy/BGP/analysis/dailyresults/','20160301')
   print 'OK'
