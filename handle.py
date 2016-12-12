@@ -3,13 +3,13 @@
 import datetime, MySQLdb, ConfigParser
 
 def handle():
-  with open('handle.log', 'a') as log:
+  with open('error.log', 'a') as log:
     try:
       cfg = ConfigParser.ConfigParser()
       with open('mysql.conf', 'r') as mysql_conf:
         cfg.readfp(mysql_conf)
         db_conf = cfg.items('db')
-        print db_conf
+        print db_config['db.user']
       print 'Test'
     except IOError, e:
       log.write('%s: IOError %s, %s.\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1]))
