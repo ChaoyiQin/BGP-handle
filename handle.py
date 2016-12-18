@@ -1,10 +1,12 @@
 #!/usr/bin/python
 
-import datetime, MySQLdb, ConfigParser
+import datetime, MySQLdb, ConfigParser, hashlib, time
 
 def handle(directory, date):
   with open('error.log', 'a') as log:
     try:
+      md5 = hashlib.md5()
+      timestamp = time.mktime(time.strptime(date, '%Y%m%d'))
       cfg = ConfigParser.ConfigParser()
       with open('mysql.conf', 'r') as mysql_conf:
         cfg.readfp(mysql_conf)
@@ -23,8 +25,17 @@ def handle(directory, date):
             lines = file_msgs.readlines()
             for line in lines:
               content = line.strip('\n').split('\t', 2)
-              print content
-              break
+              msg_no = content[0]
+              if msg_no is not 'F':
+                if content[1][-1] is '|':
+                  msg_cont = content[1].split('|', 2)
+                  msg_timestamp = msg_cont[1]
+                  md5.update(msg_cont[2])
+                else:
+                  msg_cont = content[1]
+                  msg_timestamp = timestamp
+                  md5.update(msg_cont)
+                msg_md5 = md5.hexdigest()
         finally:
           if 'db_cursor' in locals():
             db_cursor.close()
