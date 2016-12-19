@@ -7,6 +7,9 @@ def handle(directory, date):
     try:
       md5 = hashlib.md5()
       timestamp = time.mktime(time.strptime(date, '%Y%m%d'))
+      sql_msg_select = "select id, first, last from messages where md5='%s'"
+      sql_msg_insert = "insert into messages(no, content, first, last, frequency, md5, day) values(%s, %s, %s, %s, 1, %s, %s)"
+      list_msg_insert = []
       cfg = ConfigParser.ConfigParser()
       with open('mysql.conf', 'r') as mysql_conf:
         cfg.readfp(mysql_conf)
@@ -16,7 +19,7 @@ def handle(directory, date):
         db_pass = cfg.get('db', 'db_pass')
         try:
           db_conn = MySQLdb.connect(host = db_host, user = db_user, passwd = db_pass, port = int(db_port), db = 'bgp')
-          db_cursor = db_conn.cursor()
+          db_cur = db_conn.cursor()
           dir_msgs = ''.join([directory, date, '.messages'])
           dir_links = ''.join([directory, date, '.links'])
           dir_mons = ''.join([directory, date, '.monitors'])
@@ -28,17 +31,30 @@ def handle(directory, date):
               msg_no = content[0]
               if msg_no is not 'F':
                 if content[1][-1] is '|':
-                  msg_cont = content[1].split('|', 2)
-                  msg_timestamp = msg_cont[1]
-                  md5.update(msg_cont[2])
+                  msg_content = content[1].split('|', 2)
+                  msg_timestamp = msg_content[1]
+                  md5.update(msg_content[2])
+                  msg_cont = content[1]
                 else:
                   msg_cont = content[1]
                   msg_timestamp = timestamp
                   md5.update(msg_cont)
                 msg_md5 = md5.hexdigest()
+                msg_count = db_cur.execute(sql_msg_select % msg_md5)
+                if msg_count > 0:
+                  old_msg = db_cur.fetchone()
+                else:
+                  msg_first, msg_last = msg_timestamp, msg_timestamp
+                  msg_data = (msg_no, msg_cont, msg_first, msg_last, msg_md5, date)
+                  list_msg_insert.append(msg_data)
+                  if len(list_msg_insert) > 999:
+                    db_cur.executemany(sql_msg_insert, list_msg_insert)
+                    db_conn.commit()
+                    list_msg_insert = []
+                    break
         finally:
-          if 'db_cursor' in locals():
-            db_cursor.close()
+          if 'db_cur' in locals():
+            db_cur.close()
           if 'db_conn' in locals():
             db_conn.close()
     except IOError, e:
