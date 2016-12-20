@@ -7,12 +7,9 @@ def handle(directory, date):
     try:
       md5 = hashlib.md5()
       timestamp = time.mktime(time.strptime(date, '%Y%m%d'))
-      sql_msg_insert = "insert into messages(no, content, first, last, frequency, md5, day) values(%s, %s, %s, %s, 1, %s, %s)"
+      sql_msg_insert = "insert into messages(no,content,first,last,frequency,md5,day) values(%s,%s,%s,%s,1,%s,%s) on duplicate key update frequency=frequency+1,no=if(last<values(last),values(no),no),day=if(last<values(last),values(day),day),first=if(first>values(first),values(first),first),last=if(last<values(last),values(last),last)"
       list_msg_insert = []
       count_insert = 0
-      sql_msg_update = "update messages set no = %s, first = %s, last = %s, frequency = frequency + 1, day = %s where id = %s"
-      list_msg_update = []
-      count_update = 0
       cfg = ConfigParser.ConfigParser()
       with open('mysql.conf', 'r') as mysql_conf:
         cfg.readfp(mysql_conf)
@@ -43,44 +40,20 @@ def handle(directory, date):
                   msg_timestamp = timestamp
                   md5.update(msg_cont)
                 msg_md5 = md5.hexdigest()
-                msg_count = db_cur.execute(sql_msg_select % msg_md5)
-                if msg_count > 0:
-                  old_msg = db_cur.fetchone()
-                  old_id, old_no, old_first, old_last, old_day = old_msg
-                  if old_last < msg_timestamp:
-                    old_last = msg_timestamp
-                    old_no = msg_no
-                    old_day = date
-                  elif old_first > msg_timestamp:
-                    old_first = msg_timestamp
-                  msg_data = (old_no, old_first, old_last, old_day, old_id)  
-                  list_msg_update.append(msg_data)
-                  count_update += 1
-                  if count_update > 999:
-                    db_cur.executemany(sql_msg_update, list_msg_update)
-                    db_conn.commit()
-                    list_msg_update = []
-                    count_update = 0 
-                else:
-                  msg_first, msg_last = msg_timestamp, msg_timestamp
-                  msg_data = (msg_no, msg_cont, msg_first, msg_last, msg_md5, date)
-                  list_msg_insert.append(msg_data)
-                  count_insert += 1
-                  if count_insert > 999:
-                    db_cur.executemany(sql_msg_insert, list_msg_insert)
-                    db_conn.commit()
-                    list_msg_insert = []
-                    count_insert = 0
+                msg_data = (msg_no, msg_cont, msg_timestamp, msg_timestamp, msg_md5, date)
+                list_msg_insert.append(msg_data)
+                count_insert += 1
+                if count_insert > 999:
+                  db_cur.executemany(sql_msg_insert, list_msg_insert)
+                  db_conn.commit()
+                  list_msg_insert = []
+                  count_insert = 0
             if count_insert > 0:
               db_cur.executemany(sql_msg_insert, list_msg_insert)
               db_conn.commit()
               list_msg_insert = []
               count_insert = 0
-            if count_update > 0:
-              db_cur.executemany(sql_msg_update, list_msg_update)
-              db_conn.commit()
-              list_msg_update = []
-              count_update = 0
+               
           '''
           with open(dir_links, 'r') as file_links:
             lines = file_links.readlines()
