@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python -u
 
 import datetime, MySQLdb, ConfigParser, hashlib, time
 
@@ -7,9 +7,12 @@ def handle(directory, date):
     try:
       md5 = hashlib.md5()
       timestamp = time.mktime(time.strptime(date, '%Y%m%d'))
-      sql_msg_select = "select id, first, last from messages where md5='%s'"
       sql_msg_insert = "insert into messages(no, content, first, last, frequency, md5, day) values(%s, %s, %s, %s, 1, %s, %s)"
       list_msg_insert = []
+      count_insert = 0
+      sql_msg_update = "update messages set no = %s, first = %s, last = %s, frequency = frequency + 1, day = %s where id = %s"
+      list_msg_update = []
+      count_update = 0
       cfg = ConfigParser.ConfigParser()
       with open('mysql.conf', 'r') as mysql_conf:
         cfg.readfp(mysql_conf)
@@ -43,15 +46,48 @@ def handle(directory, date):
                 msg_count = db_cur.execute(sql_msg_select % msg_md5)
                 if msg_count > 0:
                   old_msg = db_cur.fetchone()
+                  old_id, old_no, old_first, old_last, old_day = old_msg
+                  if old_last < msg_timestamp:
+                    old_last = msg_timestamp
+                    old_no = msg_no
+                    old_day = date
+                  elif old_first > msg_timestamp:
+                    old_first = msg_timestamp
+                  msg_data = (old_no, old_first, old_last, old_day, old_id)  
+                  list_msg_update.append(msg_data)
+                  count_update += 1
+                  if count_update > 999:
+                    db_cur.executemany(sql_msg_update, list_msg_update)
+                    db_conn.commit()
+                    list_msg_update = []
+                    count_update = 0 
                 else:
                   msg_first, msg_last = msg_timestamp, msg_timestamp
                   msg_data = (msg_no, msg_cont, msg_first, msg_last, msg_md5, date)
                   list_msg_insert.append(msg_data)
-                  if len(list_msg_insert) > 999:
+                  count_insert += 1
+                  if count_insert > 999:
                     db_cur.executemany(sql_msg_insert, list_msg_insert)
                     db_conn.commit()
                     list_msg_insert = []
-                    break
+                    count_insert = 0
+            if count_insert > 0:
+              db_cur.executemany(sql_msg_insert, list_msg_insert)
+              db_conn.commit()
+              list_msg_insert = []
+              count_insert = 0
+            if count_update > 0:
+              db_cur.executemany(sql_msg_update, list_msg_update)
+              db_conn.commit()
+              list_msg_update = []
+              count_update = 0
+          '''
+          with open(dir_links, 'r') as file_links:
+            lines = file_links.readlines()
+            for line in lines:
+              content = line.strip('\n').split('\t')
+              link_as1, link_as2, link_type, link_mons, link_msg = content
+          '''
         finally:
           if 'db_cur' in locals():
             db_cur.close()
@@ -64,5 +100,6 @@ def handle(directory, date):
       log.write('%s: ConfigParserError %s.\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e))
 
 if __name__ == '__main__':
+  print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
   handle('/home/hitnis/qcy/BGP/analysis/dailyresults/','20160301')
-  print 'OK'
+  print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
