@@ -7,9 +7,32 @@ def handle(directory, date):
     try:
       md5 = hashlib.md5()
       timestamp = time.mktime(time.strptime(date, '%Y%m%d'))
-      sql_msg_insert = "insert into messages(no,content,first,last,frequency,md5,day) values(%s,%s,%s,%s,1,%s,%s) on duplicate key update frequency=frequency+1,no=if(last<values(last),values(no),no),day=if(last<values(last),values(day),day),first=if(first>values(first),values(first),first),last=if(last<values(last),values(last),last)"
-      list_msg_insert = []
       count_insert = 0
+
+      # Sql and list of inserting messages
+      sql_msg_insert = "insert into messages(no,content,first,last,frequency,md5,day) values(%s,%s,%s,%s,1,%s,%s) on duplicate key update frequency=frequency+1,no=values(no),day=values(day),first=if(first>values(first),values(first),first),last=if(last<values(last),values(last),last)"
+      list_msg_insert = []
+
+      # Sql of searching message
+      sql_msg_select = "select id, first, last from messages where no = %s and day = '%s'"
+      count_msg = 0
+
+      # Sql and list of inserting links
+      sql_link_insert = "insert into links values(%s,%s,%s,%s,%s,%s,%s,1) on duplicate key update frequency=frequency+1,monitors=if(last<values(last),values(monitors),monitors),message=if(last<values(last),values(message),message),first=if(first>values(first),values(first),first),last=if(last<values(last),values(last),last)"
+      list_link_insert = []
+
+      # Sql of searching asset
+      sql_asset_select = "select id from asset where md5 = '%s'"
+      sql_asset_ai = "select auto_increment from information_schema.tables where table_name = 'asset'" 
+      asset_ai = 0
+      count_select = 0
+
+      # Sql and list of inserting asset
+      count_asset = 0
+      sql_asset_insert = "insert into asset(asset, md5) values(%s, %s)"
+      list_asset_insert = []
+
+      # Loading configuration of database
       cfg = ConfigParser.ConfigParser()
       with open('mysql.conf', 'r') as mysql_conf:
         cfg.readfp(mysql_conf)
@@ -24,6 +47,7 @@ def handle(directory, date):
           dir_links = ''.join([directory, date, '.links'])
           dir_mons = ''.join([directory, date, '.monitors'])
           dir_orig = ''.join([directory, date, '.origins'])
+          '''
           with open(dir_msgs, 'r') as file_msgs:
             lines = file_msgs.readlines()
             for line in lines:
@@ -53,14 +77,73 @@ def handle(directory, date):
               db_conn.commit()
               list_msg_insert = []
               count_insert = 0
-               
-          '''
+          '''     
           with open(dir_links, 'r') as file_links:
+            db_cur.execute(sql_asset_ai)
+            asset_ai = db_cur.fetchone()[0]
             lines = file_links.readlines()
             for line in lines:
               content = line.strip('\n').split('\t')
               link_as1, link_as2, link_type, link_mons, link_msg = content
-          '''
+              if link_as1.find('{') >= 0:
+                md5.update(link_as1)
+                asset_md5 = md5.hexdigest()
+                count_select = db_cur.execute(sql_asset_select % asset_md5) 
+                if count_select > 0:
+                  asset_id = db_cur.fetchone()[0]
+                  link_as1 = '#' + str(asset_id)
+                else:
+                  asset_data = (link_as1, asset_md5)
+                  list_asset_insert.append(asset_data)
+                  count_asset += 1
+                  link_as1 = '#' + str(asset_ai)
+                  asset_ai += 1
+                  if count_asset > 999:
+                    db_cur.executemany(sql_asset_insert, list_asset_insert)
+                    db_conn.commit()
+                    list_asset_insert = []
+                    count_asset = 0
+              if link_as2.find('{') >= 0:
+                md5.update(link_as2)
+                asset_md5 = md5.hexdigest()
+                count_select = db_cur.execute(sql_asset_select % asset_md5)
+                if count_select > 0:
+                  asset_id = db_cur.fetchone()[0]
+                  link_as2 = '#' + str(asset_id)
+                else:
+                  asset_data = (link_as2, asset_md5)
+                  list_asset_insert.append(asset_data)
+                  count_asset += 1
+                  link_as2 = '#' + str(asset_ai)
+                  asset_ai += 1
+                  if count_asset > 999:
+                    db_cur.executemany(sql_asset_insert, list_asset_insert)
+                    db_conn.commit()
+                    list_asset_insert = []
+                    count_asset = 0
+              count_msg = db_cur.execute(sql_msg_select % (int(link_msg), date)) 
+              if count_msg > 0:
+                result_msg = db_cur.fetchone()
+                link_msg, link_first, link_last = result_msg
+              link_data = (link_as1, link_as2, link_type, link_mons, link_msg, link_first, link_last)
+              list_link_insert.append(link_data)
+              count_insert += 1
+              if count_insert > 999:
+                db_cur.executemany(sql_link_insert, list_link_insert)
+                db_conn.commit()
+                list_link_insert = []
+                count_insert = 0
+            if count_asset > 0:
+              db_cur.executemany(sql_asset_insert, list_asset_insert)
+              db_conn.commit()
+              list_asset_insert = []
+              count_asset = 0
+            if count_insert > 0:
+              db_cur.executemany(sql_link_insert, list_link_insert)
+              db_conn.commit()
+              list_link_insert = []
+              count_insert = 0
+              
         finally:
           if 'db_cur' in locals():
             db_cur.close()
