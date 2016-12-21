@@ -85,6 +85,7 @@ def handle(directory, date):
               db_conn.commit()
               list_msg_insert = []
               count_insert = 0
+          print "%s: Finished messages" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
           # Inserting links
           with open(dir_links, 'r') as file_links:
             db_cur.execute(sql_asset_ai)
@@ -151,6 +152,7 @@ def handle(directory, date):
               db_conn.commit()
               list_link_insert = []
               count_insert = 0
+          print "%s: Finished links" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
           # Inserting monitors
           with open(dir_mons, 'r') as file_mons:
             db_cur.execute(sql_asset_ai)
@@ -176,6 +178,7 @@ def handle(directory, date):
               db_conn.commit()
               list_mon_insert = []
               count_insert = 0
+          print "%s: Finished monitors" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
           # Inserting origins
           with open(dir_origs, 'r') as file_origs:
             db_cur.execute(sql_asset_ai)
@@ -224,6 +227,7 @@ def handle(directory, date):
               db_conn.commit()
               list_orig_insert = []
               count_insert = 0
+          print "%s: Finished origins" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
           # Delete messages that are not used by links, monitors and origins
           db_cur.execute('delete from messages where not exists (select * from (select message from links union select message from monitors union select message from origins) as used where messages.id  = used.message)')
@@ -242,5 +246,5 @@ def handle(directory, date):
 
 if __name__ == '__main__':
   print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-  handle('/home/hitnis/qcy/BGP/analysis/dailyresults/','20160302')
+  handle('/home/hitnis/qcy/BGP/analysis/dailyresults/','20160301')
   print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
