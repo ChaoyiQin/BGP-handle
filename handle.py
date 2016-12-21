@@ -55,7 +55,7 @@ def handle(directory, date):
           dir_links = ''.join([directory, date, '.links'])
           dir_mons = ''.join([directory, date, '.monitors'])
           dir_origs = ''.join([directory, date, '.origins'])
-          '''
+          # Inserting messages
           with open(dir_msgs, 'r') as file_msgs:
             lines = file_msgs.readlines()
             for line in lines:
@@ -85,8 +85,7 @@ def handle(directory, date):
               db_conn.commit()
               list_msg_insert = []
               count_insert = 0
-          '''     
-          '''
+          # Inserting links
           with open(dir_links, 'r') as file_links:
             db_cur.execute(sql_asset_ai)
             asset_ai = db_cur.fetchone()[0]
@@ -152,6 +151,7 @@ def handle(directory, date):
               db_conn.commit()
               list_link_insert = []
               count_insert = 0
+          # Inserting monitors
           with open(dir_mons, 'r') as file_mons:
             db_cur.execute(sql_asset_ai)
             asset_ai = db_cur.fetchone()[0]
@@ -176,7 +176,7 @@ def handle(directory, date):
               db_conn.commit()
               list_mon_insert = []
               count_insert = 0
-
+          # Inserting origins
           with open(dir_origs, 'r') as file_origs:
             db_cur.execute(sql_asset_ai)
             asset_ai = db_cur.fetchone()[0]
@@ -224,7 +224,8 @@ def handle(directory, date):
               db_conn.commit()
               list_orig_insert = []
               count_insert = 0
-          '''
+
+          # Delete messages that are not used by links, monitors and origins
           db_cur.execute('delete from messages where not exists (select * from (select message from links union select message from monitors union select message from origins) as used where messages.id  = used.message)')
           db_conn.commit()
               
