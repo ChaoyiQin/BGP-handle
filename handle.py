@@ -74,5 +74,5 @@ def handle(directory, date):
 
 if __name__ == '__main__':
   print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-  handle('/home/hitnis/qcy/BGP/analysis/dailyresults/','20160301')
+  handle('/home/hitnis/qcy/BGP/analysis/dailyresults/','20160302')
   print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
