@@ -21,6 +21,14 @@ def handle(directory, date):
       sql_link_insert = "insert into links values(%s,%s,%s,%s,%s,%s,%s,1) on duplicate key update frequency=frequency+1,monitors=if(last<values(last),values(monitors),monitors),message=if(last<values(last),values(message),message),first=if(first>values(first),values(first),first),last=if(last<values(last),values(last),last)"
       list_link_insert = []
 
+      # Sql and list of inserting monitors
+      sql_mon_insert = "insert into monitors values(%s,%s,%s,%s,%s,%s,%s,%s,%s,1) on duplicate key update frequency=frequency+1,prefixes=if(last<values(last),values(prefixes),prefixes),message=if(last<values(last),values(message),message),first=if(first>values(first),values(first),first),last=if(last<values(last),values(last),last)"
+      list_mon_insert = []
+
+      # Sql and list of inserting origins
+      sql_orig_insert = "insert into origins values(%s,%s,%s,%s,%s,%s,%s,1) on duplicate key update frequency=frequency+1,monitors=if(last<values(last),values(monitors),monitors),message=if(last<values(last),values(message),message),first=if(first>values(first),values(first),first),last=if(last<values(last),values(last),last)"
+      list_orig_insert = []
+
       # Sql of searching asset
       sql_asset_select = "select id from asset where md5 = '%s'"
       sql_asset_ai = "select auto_increment from information_schema.tables where table_name = 'asset'" 
@@ -46,7 +54,7 @@ def handle(directory, date):
           dir_msgs = ''.join([directory, date, '.messages'])
           dir_links = ''.join([directory, date, '.links'])
           dir_mons = ''.join([directory, date, '.monitors'])
-          dir_orig = ''.join([directory, date, '.origins'])
+          dir_origs = ''.join([directory, date, '.origins'])
           '''
           with open(dir_msgs, 'r') as file_msgs:
             lines = file_msgs.readlines()
@@ -78,6 +86,7 @@ def handle(directory, date):
               list_msg_insert = []
               count_insert = 0
           '''     
+          '''
           with open(dir_links, 'r') as file_links:
             db_cur.execute(sql_asset_ai)
             asset_ai = db_cur.fetchone()[0]
@@ -143,6 +152,81 @@ def handle(directory, date):
               db_conn.commit()
               list_link_insert = []
               count_insert = 0
+          with open(dir_mons, 'r') as file_mons:
+            db_cur.execute(sql_asset_ai)
+            asset_ai = db_cur.fetchone()[0]
+            lines = file_mons.readlines()
+            for line in lines:
+              content = line.strip('\n').split('\t')
+              mon_nexthop, mon_asn, mon_peer, mon_peerasn, mon_type, mon_prefixes, mon_msg = content
+              count_msg = db_cur.execute(sql_msg_select % (int(mon_msg), date)) 
+              if count_msg > 0:
+                result_msg = db_cur.fetchone()
+                mon_msg, mon_first, mon_last = result_msg
+              mon_data = (mon_nexthop, mon_asn, mon_peer, mon_peerasn, mon_type, mon_prefixes, mon_msg, mon_first, mon_last)
+              list_mon_insert.append(mon_data)
+              count_insert += 1
+              if count_insert > 999:
+                db_cur.executemany(sql_mon_insert, list_mon_insert)
+                db_conn.commit()
+                list_mon_insert = []
+                count_insert = 0
+            if count_insert > 0:
+              db_cur.executemany(sql_mon_insert, list_mon_insert)
+              db_conn.commit()
+              list_mon_insert = []
+              count_insert = 0
+
+          with open(dir_origs, 'r') as file_origs:
+            db_cur.execute(sql_asset_ai)
+            asset_ai = db_cur.fetchone()[0]
+            lines = file_origs.readlines()
+            for line in lines:
+              content = line.strip('\n').split('\t')
+              orig_prefix, orig_origin, orig_type, orig_mons, orig_msg = content
+              if orig_origin.find('{') >= 0:
+                md5.update(orig_origin)
+                asset_md5 = md5.hexdigest()
+                count_select = db_cur.execute(sql_asset_select % asset_md5)
+                if count_select > 0:
+                  asset_id = db_cur.fetchone()[0]
+                  orig_origin = '#' + str(asset_id)
+                else:
+                  asset_data = (orig_origin, asset_md5)
+                  list_asset_insert.append(asset_data)
+                  count_asset += 1
+                  orig_origin = '#' + str(asset_ai)
+                  asset_ai += 1
+                  if count_asset > 999:
+                    db_cur.executemany(sql_asset_insert, list_asset_insert)
+                    db_conn.commit()
+                    list_asset_insert = []
+                    count_asset = 0
+              count_msg = db_cur.execute(sql_msg_select % (int(orig_msg), date)) 
+              if count_msg > 0:
+                result_msg = db_cur.fetchone()
+                orig_msg, orig_first, orig_last = result_msg
+              orig_data = (orig_prefix, orig_origin, orig_type, orig_mons, orig_msg, orig_first, orig_last)
+              list_orig_insert.append(orig_data)
+              count_insert += 1
+              if count_insert > 999:
+                db_cur.executemany(sql_orig_insert, list_orig_insert)
+                db_conn.commit()
+                list_orig_insert = []
+                count_insert = 0
+            if count_asset > 0:
+              db_cur.executemany(sql_asset_insert, list_asset_insert)
+              db_conn.commit()
+              list_asset_insert = []
+              count_asset = 0
+            if count_insert > 0:
+              db_cur.executemany(sql_orig_insert, list_orig_insert)
+              db_conn.commit()
+              list_orig_insert = []
+              count_insert = 0
+          '''
+          db_cur.execute('delete from messages where not exists (select * from (select message from links union select message from monitors union select message from origins) as used where messages.id  = used.message)')
+          db_conn.commit()
               
         finally:
           if 'db_cur' in locals():
