@@ -7,6 +7,7 @@ def handle(directory, date):
     try:
       md5 = hashlib.md5()
       timestamp = time.mktime(time.strptime(date, '%Y%m%d'))
+      sql_msg_select = "select id, no, first, last, day from messages where md5 = '%s'"
       sql_msg_insert = "insert into messages(no, content, first, last, frequency, md5, day) values(%s, %s, %s, %s, 1, %s, %s)"
       list_msg_insert = []
       count_insert = 0
@@ -101,5 +102,5 @@ def handle(directory, date):
 
 if __name__ == '__main__':
   print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-  handle('/home/hitnis/qcy/BGP/analysis/dailyresults/','20160301')
+  handle('/home/hitnis/qcy/BGP/analysis/dailyresults/','20160302')
   print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
