@@ -70,6 +70,8 @@ def handle(directory, date):
                 if content[1][-1] is '|':
                   msg_content = content[1].split('|', 2)
                   msg_timestamp = msg_content[1]
+                  if len(msg_timestamp) != 10:
+                    continue
                   md5.update(msg_content[2])
                   msg_cont = content[1]
                 else:
