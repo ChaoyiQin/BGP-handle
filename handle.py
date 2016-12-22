@@ -12,6 +12,7 @@ def handle(directory, date):
       # Sql and list of inserting messages
       sql_msg_insert = "insert into messages(no,content,first,last,frequency,md5,day) values(%s,%s,%s,%s,1,%s,%s) on duplicate key update frequency=frequency+1,no=values(no),day=values(day),first=if(first>values(first),values(first),first),last=if(last<values(last),values(last),last)"
       list_msg_insert = []
+      total_msg = 0
 
       # Sql of searching message
       sql_msg_select = "select id, first, last from messages where no = %s and day = '%s'"
@@ -20,14 +21,17 @@ def handle(directory, date):
       # Sql and list of inserting links
       sql_link_insert = "insert into links values(%s,%s,%s,%s,%s,%s,%s,1) on duplicate key update frequency=frequency+1,monitors=if(last<values(last),values(monitors),monitors),message=if(last<values(last),values(message),message),first=if(first>values(first),values(first),first),last=if(last<values(last),values(last),last)"
       list_link_insert = []
+      total_link = 0
 
       # Sql and list of inserting monitors
       sql_mon_insert = "insert into monitors values(%s,%s,%s,%s,%s,%s,%s,%s,%s,1) on duplicate key update frequency=frequency+1,prefixes=if(last<values(last),values(prefixes),prefixes),message=if(last<values(last),values(message),message),first=if(first>values(first),values(first),first),last=if(last<values(last),values(last),last)"
       list_mon_insert = []
+      total_mon = 0
 
       # Sql and list of inserting origins
       sql_orig_insert = "insert into origins values(%s,%s,%s,%s,%s,%s,%s,1) on duplicate key update frequency=frequency+1,monitors=if(last<values(last),values(monitors),monitors),message=if(last<values(last),values(message),message),first=if(first>values(first),values(first),first),last=if(last<values(last),values(last),last)"
       list_orig_insert = []
+      total_orig = 0
 
       # Sql of searching asset
       sql_asset_select = "select id from asset where md5 = '%s'"
@@ -48,6 +52,7 @@ def handle(directory, date):
         db_port = cfg.get('db', 'db_port')
         db_user = cfg.get('db', 'db_user')
         db_pass = cfg.get('db', 'db_pass')
+
         try:
           db_conn = MySQLdb.connect(host = db_host, user = db_user, passwd = db_pass, port = int(db_port), db = 'bgp')
           db_cur = db_conn.cursor()
@@ -75,14 +80,25 @@ def handle(directory, date):
                 msg_data = (msg_no, msg_cont, msg_timestamp, msg_timestamp, msg_md5, date)
                 list_msg_insert.append(msg_data)
                 count_insert += 1
+                total_msg += 1
                 if count_insert > 999:
-                  db_cur.executemany(sql_msg_insert, list_msg_insert)
-                  db_conn.commit()
+
+                  try:
+                    db_cur.executemany(sql_msg_insert, list_msg_insert)
+                    db_conn.commit()
+                  except MySQLdb.Error, e:
+                    print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], total_msg - 1000, total_msg, "messages")
+
                   list_msg_insert = []
                   count_insert = 0
             if count_insert > 0:
-              db_cur.executemany(sql_msg_insert, list_msg_insert)
-              db_conn.commit()
+
+              try:
+                db_cur.executemany(sql_msg_insert, list_msg_insert)
+                db_conn.commit()
+              except MySQLdb.Error, e:
+                print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], total_msg - 1000, total_msg, "messages")
+
               list_msg_insert = []
               count_insert = 0
           print "%s: Finished messages" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -108,8 +124,15 @@ def handle(directory, date):
                   link_as1 = '#' + str(asset_ai)
                   asset_ai += 1
                   if count_asset > 999:
-                    db_cur.executemany(sql_asset_insert, list_asset_insert)
-                    db_conn.commit()
+
+                    try:
+                      db_cur.executemany(sql_asset_insert, list_asset_insert)
+                      db_conn.commit()
+                    except MySQLdb.Error, e:
+                      print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], asset_ai - 1000, asset_ai, "asset")
+                      db_cur.execute(sql_asset_ai)
+                      asset_ai = db_cur.fetchone()[0]
+
                     list_asset_insert = []
                     count_asset = 0
               if link_as2.find('{') >= 0:
@@ -126,8 +149,15 @@ def handle(directory, date):
                   link_as2 = '#' + str(asset_ai)
                   asset_ai += 1
                   if count_asset > 999:
-                    db_cur.executemany(sql_asset_insert, list_asset_insert)
-                    db_conn.commit()
+
+                    try:
+                      db_cur.executemany(sql_asset_insert, list_asset_insert)
+                      db_conn.commit()
+                    except MySQLdb.Error, e:
+                      print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], asset_ai - 1000, asset_ai, "asset")
+                      db_cur.execute(sql_asset_ai)
+                      asset_ai = db_cur.fetchone()[0]
+
                     list_asset_insert = []
                     count_asset = 0
               count_msg = db_cur.execute(sql_msg_select % (int(link_msg), date)) 
@@ -137,22 +167,41 @@ def handle(directory, date):
               link_data = (link_as1, link_as2, link_type, link_mons, link_msg, link_first, link_last)
               list_link_insert.append(link_data)
               count_insert += 1
+              total_link += 1
               if count_insert > 999:
-                db_cur.executemany(sql_link_insert, list_link_insert)
-                db_conn.commit()
+
+                try:
+                  db_cur.executemany(sql_link_insert, list_link_insert)
+                  db_conn.commit()
+                except MySQLdb.Error, e:
+                  print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], total_link - 1000, total_link, "links")
+
                 list_link_insert = []
                 count_insert = 0
             if count_asset > 0:
-              db_cur.executemany(sql_asset_insert, list_asset_insert)
-              db_conn.commit()
+
+              try:
+                db_cur.executemany(sql_asset_insert, list_asset_insert)
+                db_conn.commit()
+              except MySQLdb.Error, e:
+                print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], asset_ai - 1000, asset_ai, "asset")
+                db_cur.execute(sql_asset_ai)
+                asset_ai = db_cur.fetchone()[0]
+
               list_asset_insert = []
               count_asset = 0
             if count_insert > 0:
-              db_cur.executemany(sql_link_insert, list_link_insert)
-              db_conn.commit()
+
+              try:
+                db_cur.executemany(sql_link_insert, list_link_insert)
+                db_conn.commit()
+              except MySQLdb.Error, e:
+                print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], total_link - 1000, total_link, "links")
+
               list_link_insert = []
               count_insert = 0
           print "%s: Finished links" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
           # Inserting monitors
           with open(dir_mons, 'r') as file_mons:
             db_cur.execute(sql_asset_ai)
@@ -168,17 +217,29 @@ def handle(directory, date):
               mon_data = (mon_nexthop, mon_asn, mon_peer, mon_peerasn, mon_type, mon_prefixes, mon_msg, mon_first, mon_last)
               list_mon_insert.append(mon_data)
               count_insert += 1
+              total_mon += 1
               if count_insert > 999:
-                db_cur.executemany(sql_mon_insert, list_mon_insert)
-                db_conn.commit()
+
+                try:
+                  db_cur.executemany(sql_mon_insert, list_mon_insert)
+                  db_conn.commit()
+                except MySQLdb.Error, e:
+                  print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], total_mon - 1000, total_mon, "monitors")
+
                 list_mon_insert = []
                 count_insert = 0
             if count_insert > 0:
-              db_cur.executemany(sql_mon_insert, list_mon_insert)
-              db_conn.commit()
+
+              try:
+                db_cur.executemany(sql_mon_insert, list_mon_insert)
+                db_conn.commit()
+              except MySQLdb.Error, e:
+                print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], total_mon - 1000, total_mon, "monitors")
+
               list_mon_insert = []
               count_insert = 0
           print "%s: Finished monitors" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
           # Inserting origins
           with open(dir_origs, 'r') as file_origs:
             db_cur.execute(sql_asset_ai)
@@ -201,8 +262,15 @@ def handle(directory, date):
                   orig_origin = '#' + str(asset_ai)
                   asset_ai += 1
                   if count_asset > 999:
-                    db_cur.executemany(sql_asset_insert, list_asset_insert)
-                    db_conn.commit()
+
+                    try:
+                      db_cur.executemany(sql_asset_insert, list_asset_insert)
+                      db_conn.commit()
+                    except MySQLdb.Error, e:
+                      print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], asset_ai - 1000, asset_ai, "asset")
+                      db_cur.execute(sql_asset_ai)
+                      asset_ai = db_cur.fetchone()[0]
+
                     list_asset_insert = []
                     count_asset = 0
               count_msg = db_cur.execute(sql_msg_select % (int(orig_msg), date)) 
@@ -212,19 +280,37 @@ def handle(directory, date):
               orig_data = (orig_prefix, orig_origin, orig_type, orig_mons, orig_msg, orig_first, orig_last)
               list_orig_insert.append(orig_data)
               count_insert += 1
+              total_orig += 1
               if count_insert > 999:
-                db_cur.executemany(sql_orig_insert, list_orig_insert)
-                db_conn.commit()
+
+                try:
+                  db_cur.executemany(sql_orig_insert, list_orig_insert)
+                  db_conn.commit()
+                except MySQLdb.Error, e:
+                  print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], total_orig - 1000, total_orig, "origins")
+
                 list_orig_insert = []
                 count_insert = 0
             if count_asset > 0:
-              db_cur.executemany(sql_asset_insert, list_asset_insert)
-              db_conn.commit()
+
+              try:
+                db_cur.executemany(sql_asset_insert, list_asset_insert)
+                db_conn.commit()
+              except MySQLdb.Error, e:
+                print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], asset_ai - 1000, asset_ai, "asset")
+                db_cur.execute(sql_asset_ai)
+                asset_ai = db_cur.fetchone()[0]
+          
               list_asset_insert = []
               count_asset = 0
             if count_insert > 0:
-              db_cur.executemany(sql_orig_insert, list_orig_insert)
-              db_conn.commit()
+
+              try:
+                db_cur.executemany(sql_orig_insert, list_orig_insert)
+                db_conn.commit()
+              except MySQLdb.Error, e:
+                print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], total_orig - 1000, total_orig, "origins")
+
               list_orig_insert = []
               count_insert = 0
           print "%s: Finished origins" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
