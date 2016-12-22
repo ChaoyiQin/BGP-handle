@@ -88,6 +88,7 @@ def handle(directory, date):
                     db_conn.commit()
                   except MySQLdb.Error, e:
                     print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], total_msg - 1000, total_msg, "messages")
+                    return 0
 
                   list_msg_insert = []
                   count_insert = 0
@@ -98,6 +99,7 @@ def handle(directory, date):
                 db_conn.commit()
               except MySQLdb.Error, e:
                 print "%s, error %d:%s, between %d-%d in %s." % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), e.args[0], e.args[1], total_msg - 1000, total_msg, "messages")
+                return 0
 
               list_msg_insert = []
               count_insert = 0
