@@ -5,7 +5,6 @@ import datetime, MySQLdb, ConfigParser, hashlib, time
 def handle(directory, date):
   with open('error.log', 'a') as log:
     try:
-      md5 = hashlib.md5()
       timestamp = time.mktime(time.strptime(date, '%Y%m%d'))
       count_insert = 0
 
@@ -72,12 +71,12 @@ def handle(directory, date):
                   msg_timestamp = msg_content[1]
                   if len(msg_timestamp) != 10:
                     continue
-                  md5.update(msg_content[2])
+                  md5 = hashlib.md5(msg_content[2])
                   msg_cont = content[1]
                 else:
                   msg_cont = content[1]
                   msg_timestamp = timestamp
-                  md5.update(msg_cont)
+                  md5 = hashlib.md5(msg_cont)
                 msg_md5 = md5.hexdigest()
                 msg_data = (msg_no, msg_cont, msg_timestamp, msg_timestamp, msg_md5, date)
                 list_msg_insert.append(msg_data)
@@ -115,7 +114,7 @@ def handle(directory, date):
               content = line.strip('\n').split('\t')
               link_as1, link_as2, link_type, link_mons, link_msg = content
               if link_as1.find('{') >= 0:
-                md5.update(link_as1)
+                md5 = hashlib.md5(link_as1)
                 asset_md5 = md5.hexdigest()
                 count_select = db_cur.execute(sql_asset_select % asset_md5) 
                 if count_select > 0:
@@ -140,7 +139,7 @@ def handle(directory, date):
                     list_asset_insert = []
                     count_asset = 0
               if link_as2.find('{') >= 0:
-                md5.update(link_as2)
+                md5 = hashlib.md5(link_as2)
                 asset_md5 = md5.hexdigest()
                 count_select = db_cur.execute(sql_asset_select % asset_md5)
                 if count_select > 0:
@@ -164,6 +163,7 @@ def handle(directory, date):
 
                     list_asset_insert = []
                     count_asset = 0
+
               count_msg = db_cur.execute(sql_msg_select % (int(link_msg), date)) 
               if count_msg > 0:
                 result_msg = db_cur.fetchone()
@@ -253,7 +253,7 @@ def handle(directory, date):
               content = line.strip('\n').split('\t')
               orig_prefix, orig_origin, orig_type, orig_mons, orig_msg = content
               if orig_origin.find('{') >= 0:
-                md5.update(orig_origin)
+                md5 = hashlib.md5(orig_origin)
                 asset_md5 = md5.hexdigest()
                 count_select = db_cur.execute(sql_asset_select % asset_md5)
                 if count_select > 0:
